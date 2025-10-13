@@ -390,9 +390,9 @@ async function handleRequest(request) {
 
   if (url.pathname === '/update-api-key') {
     // Validate and store API keys
-  } else if (url.pathname === '/proxy/fetch-image') {
-    // Proxy image fetches
-  } else if (url.pathname === '/proxy/process-vision-api') {
+  } else if (url.pathname === '/fetch-image') {
+    // Image fetches
+  } else if (url.pathname === '/process-vision-api') {
     // Process vision API requests
 }
 ```
