@@ -1,3 +1,6 @@
+// First, so the tab lookups every tool relies on are corrected before any of
+// them run in the standalone panel window.
+import './detachedPanel';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';

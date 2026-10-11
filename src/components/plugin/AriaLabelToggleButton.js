@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { TagIcon } from 'lucide-react';
 import useTranslation from '../../useTranslation';
+import { toolTileClass, toolTileIconClass, toolTileLabelClass } from './toolTile';
 
 const AriaLabelToggleButton = () => {
   const [showAriaLabel, setShowAriaLabel] = useState(false);
@@ -19,8 +20,11 @@ const AriaLabelToggleButton = () => {
 
   const sendMessage = useCallback(async (show) => {
     try {
+      // Commit storage FIRST so content script reads the fresh value
+      await new Promise((resolve) => chrome.storage.local.set({ showAriaLabel: show }, resolve));
+
       await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action: "toggleTooltips", value: false }, (response) => {
+        chrome.runtime.sendMessage({ action: "applyAriaTooltips", show: show }, (response) => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else {
@@ -28,15 +32,8 @@ const AriaLabelToggleButton = () => {
           }
         });
       });
-      // Save the state to Chrome storage
-      chrome.storage.local.set({ showAriaLabel: show });
 
-       // Update badge
-       chrome.runtime.sendMessage({ 
-        action: "updateBadge", 
-        active: show 
-      });
-      
+      chrome.runtime.sendMessage({ action: "updateBadge", active: show });
     } catch (error) {
       console.error('Error sending message to content script:', error.message);
     }
@@ -49,18 +46,14 @@ const AriaLabelToggleButton = () => {
   };
 
   return (
-    <Button 
-      onClick={toggleAriaLabel} 
-      className={`flex items-center justify-start w-full px-2 py-1 text-left ${
-        showAriaLabel ? 'bg-white text-black hover:bg-gray-200' : 'text-gray-300 hover:bg-gray-700'
-      }`}
+    <Button
+      onClick={toggleAriaLabel}
+      className={toolTileClass(showAriaLabel)}
     >
-      <TagIcon className="w-5 h-5 mr-3 flex-shrink-0" />
-      {showAriaLabel ? (
-        <span>{t('disableAriaLabelTooltips')}</span>
-      ) : (
-        <span>{t('enableAriaLabelTooltips')}</span>
-      )}
+      <TagIcon className={toolTileIconClass} />
+      <span className={toolTileLabelClass}>
+        {showAriaLabel ? t('disableAriaLabelTooltips') : t('enableAriaLabelTooltips')}
+      </span>
     </Button>
   );
 };

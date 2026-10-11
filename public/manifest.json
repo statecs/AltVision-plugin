@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AltVision",
-  "version": "1.0.0",
+  "version": "1.0.11",
   "description": "Empowering Visual Accessibility",
   "action": {
     "default_icon": {
@@ -17,6 +17,7 @@
   },
   "permissions": [
     "storage",
+    "activeTab",
     "sidePanel",
     "contextMenus"
   ],
@@ -25,7 +26,7 @@
       "matches": ["<all_urls>"],
       "js": ["config.js", "translationUtils.js", "content.js"]
     }
-  ],
+  ],  
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
   },

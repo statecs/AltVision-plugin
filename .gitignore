@@ -96,3 +96,7 @@ dist
 # Temporary files
 tmp/
 temp/
+
+# Firefox build and packaged archives
+/build-firefox
+web-ext-artifacts/
