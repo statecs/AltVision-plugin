@@ -83,6 +83,17 @@ html {
   min-width: 23em;
 }
 
+/* Chrome sizes the toolbar popup by shrink-wrapping the document, so the panel
+   comes out at its natural width. Firefox instead lays the popup out at the
+   800px maximum and only then measures it, which stretches the tool grid across
+   the whole width. Shrink-wrapping explicitly gives both browsers the same
+   panel. Scoped to the panel: the batch manager opens in a full tab and has to
+   keep filling it. */
+html.altvision-panel {
+  width: max-content;
+  max-width: 25rem;
+}
+
 .App {
   text-align: left;
 }

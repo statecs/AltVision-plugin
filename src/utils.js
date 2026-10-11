@@ -1,3 +1,4 @@
+/*global chrome*/
 import { ENDPOINTS } from './services/urls';
 
 export const isImageUrl = (url) => {
@@ -6,10 +7,29 @@ export const isImageUrl = (url) => {
 
 // Place this at the top of your MessageCreator.js file
 export const downloadAndConvertImage = async (imageUrl) => {
-    const proxyUrl = `${ENDPOINTS.FETCH_IMAGE}?url=${encodeURIComponent(imageUrl)}`;
-    const response = await fetch(proxyUrl);
-    const data = await response.json();
-    return data.base64;
+    // Already inline: nothing to fetch, and the worker's /fetch-image is GET only.
+    if (imageUrl.startsWith('data:')) {
+      return imageUrl;
+    }
+    const response = await fetch(`${ENDPOINTS.FETCH_IMAGE}?url=${encodeURIComponent(imageUrl)}`);
+    const data = await response.json().catch(() => null);
+
+    // Server signals clientFetch (with a 503) when it can't fetch the image
+    // itself, e.g. WAF-protected sites that only allow real browsers
+    if (data && data.clientFetch) {
+      const directResponse = await fetch(imageUrl);
+      if (!directResponse.ok) {
+        throw new Error(`Client-side image fetch failed! status: ${directResponse.status}`);
+      }
+      const blob = await directResponse.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+    return data && data.base64;
 };
 
 // Utility function to extract URL from a string

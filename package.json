@@ -1,6 +1,6 @@
 {
   "name": "altVision",
-  "version": "1.0.1",
+  "version": "1.0.11",
   "private": true,
   "homepage": ".",
   "dependencies": {
@@ -32,7 +32,11 @@
     "start": "REACT_APP_BUILD_EXTENSION=true react-app-rewired start",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "build": "REACT_APP_BUILD_EXTENSION=true react-app-rewired build"
+    "build": "REACT_APP_BUILD_EXTENSION=true react-app-rewired build",
+    "build:chrome": "node scripts/build-chrome.js",
+    "build:firefox": "node scripts/build-firefox.js",
+    "package:firefox": "node scripts/build-firefox.js --zip",
+    "release:firefox": "node scripts/build-firefox.js --zip --source"
   },
   "eslintConfig": {
     "extends": [

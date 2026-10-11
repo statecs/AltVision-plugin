@@ -2,7 +2,7 @@
 
 **Empowering Visual Accessibility**
 
-AltVision is a Chrome extension designed to make the web more accessible by visualizing accessibility features and providing tools to test and improve web accessibility. Whether you're a developer, designer, or accessibility advocate, AltVision helps you understand and enhance the accessibility of web content.
+AltVision is a browser extension for Chrome and Firefox designed to make the web more accessible by visualizing accessibility features and providing tools to test and improve web accessibility. Whether you're a developer, designer, or accessibility advocate, AltVision helps you understand and enhance the accessibility of web content.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chrome.google.com/webstore)
@@ -19,7 +19,7 @@ This extension requires a Cloudflare Worker backend to function. You need to:
    - 🚀 **Quick Start**: Use our ready-made worker: [altvision-cloudflare-worker](https://github.com/statecs/altvision-cloudflare-worker)
    - Or create your own custom implementation
 2. **Update the backend URL** in BOTH `src/services/urls.js` AND `public/config.js`
-3. **Update the manifest** in `public/manifest.json` with your worker domain
+3. **Update the manifests** (`public/manifest.json` and `public/manifest.firefox.json`) with your worker domain
 
 See the [Backend Configuration](#backend-configuration) section for detailed instructions.
 
@@ -27,26 +27,37 @@ See the [Backend Configuration](#backend-configuration) section for detailed ins
 
 ## Features
 
-### Free Features
+This open-source build contains every accessibility tool from the released AltVision extension (v1.0.11). It talks only to a backend you deploy yourself.
 
-- **Alt Text Visualization**: Display alt text as tooltips when hovering over images
+#### Images and text
+- **Alt Text Visualization**: Show alt text as tooltips on images, and generate missing alt text with AI (click the tooltip)
 - **ARIA Label Display**: Show ARIA labels for interactive elements
-- **Language Support**: Multi-language interface support
-- **Page Reload**: Quick page refresh from within the extension
+- **Batch Alt Text**: List the page's images, generate and apply alt text (first 5 images per page)
+- **Screen Reader Preview**: Preview how images are announced
 
-### Premium Features [Chrome Web Store page](https://chromewebstore.google.com/detail/altvision/iogpbgncdhijknmmhkllijfaioecfcoa)
-
-- **Vision Simulation**: Simulate various types of color blindness and visual impairments
-  - Protanopia (red-blind)
-  - Deuteranopia (green-blind)
-  - Tritanopia (blue-blind)
-  - Achromatopsia (total color blindness)
-  - And more...
-- **Contrast Ratio Checker**: Test color contrast ratios to ensure WCAG compliance
-- **Accessibility Highlighting**: Automatically highlight accessibility issues on web pages
+#### Keyboard and structure
+- **Focus Finder**: Highlight the element that has keyboard focus
+- **Tab Order**: Number the page's focusable elements in tab order
 - **Header Structure Visualization**: See the heading hierarchy of any page
-- **AI-Powered Chat**: Ask questions about accessibility issues using OpenAI
-- **Custom Prompts**: Define your own AI prompts for specialized accessibility analysis
+- **Accessibility Highlighting**: Highlight accessibility issues on the page
+
+#### Visual
+- **Vision Simulator**: Simulate color blindness (protanopia, deuteranopia, tritanopia, achromatopsia, and more) and other visual impairments
+- **Contrast Ratio Checker**: Check WCAG contrast, with an eyedropper to pick colors from the page
+
+#### Other
+- **AI Chat**: Ask follow-up questions about an image's alt text
+- **31 interface languages**
+- **Bring your own key**: Use your own OpenAI API key via your own worker
+
+### Not included (AltVision Premium)
+
+These are only in the [published extension](https://chromewebstore.google.com/detail/altvision/iogpbgncdhijknmmhkllijfaioecfcoa):
+
+- Batch alt text for every image on the page
+- Custom prompts, and per-image instructions with multiple suggestions
+- Model choice (Claude Sonnet)
+- Higher daily usage limits, subscriptions and credits
 
 ## Installation
 
@@ -142,14 +153,20 @@ This will start the development server. To test in Chrome:
 
 ### Building for Production
 
-Build the extension:
 ```bash
-npm run build
+npm run build            # Chrome  -> build/
+npm run build:chrome     # Chrome  -> build/ plus web-ext-artifacts/altvision-chrome-<version>.zip
+npm run build:firefox    # Firefox -> build-firefox/
+npm run package:firefox  # Firefox -> build-firefox/ plus a signable .zip
 ```
 
-The production build will be created in the `build` folder. This folder can be:
-- Zipped and uploaded to the Chrome Web Store
-- Loaded as an unpacked extension in Chrome for testing
+`build:chrome` and `build:firefox` refuse to package if the version in `package.json` and the manifest disagree.
+
+**Chrome**: `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `build/`.
+
+**Firefox**: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → select `build-firefox/manifest.json`. Temporary add-ons are removed when Firefox closes.
+
+`public/manifest.firefox.json` is the only per-browser source file. It uses an event page (`background.scripts`) instead of a service worker, drops the `sidePanel` permission, and needs an add-on id: replace `altvision@example.com` in `browser_specific_settings.gecko.id` with an id you control before publishing to addons.mozilla.org. That id is permanent for the listing.
 
 ### Project Structure
 
@@ -157,7 +174,9 @@ The production build will be created in the `build` folder. This folder can be:
 AltVision-plugin/
 ├── public/
 │   ├── manifest.json          # Chrome extension manifest (V3)
-│   ├── background.js          # Service worker
+│   ├── manifest.firefox.json  # Firefox extension manifest (V3)
+│   ├── config.js              # Backend URL for content scripts
+│   ├── background.js          # Service worker / event page
 │   ├── content.js             # Content script for page injection
 │   ├── translationUtils.js    # Translation utilities
 │   └── icons/                 # Extension icons
@@ -169,6 +188,7 @@ AltVision-plugin/
 │   ├── Plugin.js              # Main plugin container
 │   ├── index.chrome.js        # Chrome-specific entry point
 │   └── useTranslation.js      # Translation hook
+├── scripts/                   # build-chrome.js, build-firefox.js
 ├── config-overrides.js        # Custom webpack config
 ├── tailwind.config.js         # Tailwind CSS configuration
 └── package.json
@@ -376,7 +396,11 @@ Create a Cloudflare Worker with the following endpoints:
 |----------|--------|---------|
 | `/update-api-key` | POST | Validates and stores user API keys |
 | `/fetch-image` | GET | Proxies image fetches with CORS |
+| `/process-simple-vision-api` | POST | Generates alt text for one image |
 | `/process-vision-api` | POST | Processes vision API requests |
+| `/send-message` | POST | AI chat follow-up about an image |
+
+Requests send `Content-Type` and, once an API key is saved, `X-User-Id`. A worker can answer `{ "code": "limit", "message": "..." }` to rate-limit; the extension shows the message and pauses requests for two minutes.
 
 **Example Worker Structure:**
 ```javascript
@@ -419,7 +443,7 @@ const BACKEND_BASE_URL = 'https://your-worker-name.workers.dev';
 
 #### 3. Update Manifest Permissions
 
-Edit `public/manifest.json` and update the `host_permissions` with your worker domain:
+Edit `public/manifest.json` and `public/manifest.firefox.json` and update the `host_permissions` with your worker domain:
 
 ```json
 "host_permissions": [
@@ -472,12 +496,14 @@ We welcome contributions to expand test coverage!
 - **Backend Required**: You must deploy your own Cloudflare Worker backend. A ready-to-use implementation is available at [altvision-cloudflare-worker](https://github.com/statecs/altvision-cloudflare-worker)
 - **API Keys Required**: Users must provide their own OpenAI API keys for AI features
 - **Performance**: May vary on pages with many images or complex DOM structures
-- **Configuration**: Requires manual URL configuration in `src/services/urls.js`, `public/config.js`, and `public/manifest.json`
+- **Configuration**: Requires manual URL configuration in `src/services/urls.js`, `public/config.js`, `public/manifest.json` and `public/manifest.firefox.json`
+- **AI Chat**: The reference worker does not implement `/send-message` yet, so chat needs a worker that does
 
 ## Roadmap
 
 - [ ] Add automated accessibility scanning
-- [ ] Support for Firefox and Edge
+- [x] Support for Firefox
+- [ ] Support for Edge
 - [ ] Offline mode for basic features
 - [ ] Export accessibility reports
 - [ ] Integration with popular accessibility testing tools
@@ -485,7 +511,7 @@ We welcome contributions to expand test coverage!
 
 ## Privacy & Security
 
-- API keys are stored locally in Chrome's sync storage
+- API keys are stored locally in the browser's sync storage
 - No browsing data is collected or transmitted (except for AI feature requests)
 - See [SECURITY.md](SECURITY.md) for security policy and reporting vulnerabilities
 

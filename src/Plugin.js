@@ -1,11 +1,30 @@
 /*global chrome*/
+import logo from './logo.svg';
 import './Plugin.css';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PluginComponent from './components/plugin/PluginComponent';
+import BatchAltTextManager from './components/plugin/BatchAltTextManager';
 import LanguageSelector from './components/plugin/LanguageSelector';
 import useTranslation from './useTranslation';
 import { ENDPOINTS } from './services/urls';
+
+// Set before the first render so the panel never paints at the wrong width.
+// See the .altvision-panel rule in Plugin.css for why Firefox needs this.
+if (new URLSearchParams(window.location.search).get('view') !== 'batch') {
+  document.documentElement.classList.add('altvision-panel');
+}
+
+function AppRoot() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('view') === 'batch') {
+    const sourceTabId = parseInt(urlParams.get('sourceTabId'));
+    return <BatchAltTextManager sourceTabId={sourceTabId} />;
+  }
+  return <Plugin />;
+}
+
+export default AppRoot;
 
 function Plugin() {
   // Initialize threadId from localStorage if available
@@ -38,8 +57,7 @@ function Plugin() {
     setIsBannerVisible(true); // Show banner when modal is closed without saving API key
     setError(''); // Clear error message when modal is shown
   };
-
-
+  
   // Check for an existing API key on component mount
   useEffect(() => {
     chrome.storage.sync.get(['openaiKey', 'userId'], function(data) {
@@ -49,7 +67,7 @@ function Plugin() {
       } else {
         setIsBannerVisible(true); // Show banner if no OpenAI API key exists
       }
-
+  
       if (data.userId) {
         setUserId(data.userId);
       }
@@ -62,6 +80,10 @@ function Plugin() {
   const saveApiKey = async () => {
     if (!userId.trim()) {
       setError(t('userIdEmptyError'));
+      return; // Stop the function from proceeding further
+    }
+    if (!openaiKey.trim()) {
+      setError(t('apiKeyEmptyError'));
       return; // Stop the function from proceeding further
     }
 
@@ -89,13 +111,13 @@ function Plugin() {
       // Save API key in Chrome Storage
       await saveToChromeStorage();
   
-      // Then send the API key to the backend
+      // Then send the API key to the Express backend
       const response = await fetch(ENDPOINTS.UPDATE_API_KEY, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           apiKey: openaiKey,
           userId
         }),
@@ -156,8 +178,10 @@ function Plugin() {
   
 
   return (
-    <div className="App bg-gray-800 h-screen">
+    <div className="App bg-gray-800">
 
+ 
+  
 
       {isModalVisible && (
        <div id="apiKeyModal" className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" onClick={closeModal}>
@@ -205,7 +229,7 @@ function Plugin() {
                 </svg>
               </a>
              </div>
-
+             
            </div>
            
            {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
@@ -246,7 +270,7 @@ function Plugin() {
       )}
 
   {isBannerVisible && shouldShowBanner && (
-    <div className={`banner px-2 bg-gray-800 text-white flex items-center justify-between transition-all duration-300`}>
+    <div className={`banner pl-6 pr-6 py-3 bg-gray-800 text-white flex items-center justify-between gap-2 transition-all duration-300`}>
       <div className="flex justify-start flex-grow">
           <LanguageSelector />
       </div>
@@ -264,4 +288,3 @@ function Plugin() {
   );
 }
 
-export default Plugin;
